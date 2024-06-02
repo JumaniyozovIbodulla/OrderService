@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package order_service;
+
+option go_package = "genproto/order_service";
+
+import "google/protobuf/timestamp.proto";
+
+service OrderService {
+    rpc Create(CreateOrder) returns (Order) {}
+    rpc GetById(OrderPrimaryKey) returns (Order) {}
+    rpc GetAll(GetListOrderRequest) returns (GetListOrderResponse) {}
+    rpc Update(UpdateOrder) returns (Order) {}
+    rpc Delete(OrderPrimaryKey) returns (Empty) {}
+}
+
+enum TypeEnum {
+    self_pickup = 0;
+    delivery = 1;
+}
+
+enum PaymentEnum {
+    waiting_for_payment = 0;
+    collecting = 1;
+    shipping = 2;
+    waiting_on_branch = 3;
+    finished = 4;
+    cancelled = 5;
+}
+
+message Point {
+    double latitude = 1;
+    double longitude = 2;
+}
+
+message Polygon {
+    repeated Point points = 1;
+}
+
+message Empty {}
+
+message OrderPrimaryKey {
+    string id = 1;
+}
+
+message CreateOrder {
+    string external_id = 1;
+    TypeEnum type = 2;
+    string customer_phone = 3;
+    string customer_name = 4;
+    string customer_id = 5;
+    PaymentEnum status = 6;
+    string to_address = 7;
+    Polygon to_location = 8;
+    double discount_amount = 9;
+    double amount = 10;
+    double delivery_price = 11;
+    bool paid = 12;
+    google.protobuf.Timestamp created_at = 13;
+    google.protobuf.Timestamp updated_at = 14;
+    int64 deleted_at = 15;
+}   
+
+
+message Order {
+    string id = 1;
+    string external_id = 2;
+    TypeEnum type = 3;
+    string customer_phone = 4;
+    string customer_name = 5;
+    string customer_id = 6;
+    PaymentEnum status = 7;
+    string to_address = 8;
+    Polygon to_location = 9;
+    double discount_amount = 10;
+    double amount = 11;
+    double delivery_price = 12;
+    bool paid = 13;
+    google.protobuf.Timestamp created_at = 14;
+    google.protobuf.Timestamp updated_at = 15;
+    int64 deleted_at = 16;
+}
+
+message UpdateOrder {
+    string id = 1;
+    string external_id = 2;
+    TypeEnum type = 3;
+    string customer_phone = 4;
+    string customer_name = 5;
+    string customer_id = 6;
+    PaymentEnum status = 7;
+    string to_address = 8;
+    Polygon to_location = 9;
+    double discount_amount = 10;
+    double amount = 11;
+    double delivery_price = 12;
+    bool paid = 13;
+    google.protobuf.Timestamp updated_at = 14;
+    int64 deleted_at = 15;
+}
+
+message GetListOrderRequest {
+    int64 offset = 1;
+    int64 limit = 2;
+    string search = 3;
+}
+
+message GetListOrderResponse {
+    int64 Count = 1;
+    repeated Order Orders = 2;
+}

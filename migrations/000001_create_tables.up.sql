@@ -1,6 +1,6 @@
 CREATE TYPE "order_enum" AS ENUM('self_pickup','delivery');
 
-CREATE TYPE "payment_enum" AS ENUM('waiting_for_payment', 'collecting', 'delivery', 'waiting_on_branch', 'finished', 'cancelled');
+CREATE TYPE "payment_enum" AS ENUM('waiting_for_payment', 'collecting', 'shipping', 'waiting_on_branch', 'finished', 'cancelled');
 
 CREATE TABLE IF NOT EXISTS "orders" (
     "id" UUID PRIMARY KEY,
