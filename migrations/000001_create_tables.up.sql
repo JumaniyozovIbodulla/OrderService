@@ -2,6 +2,8 @@ CREATE TYPE "order_enum" AS ENUM('self_pickup','delivery');
 
 CREATE TYPE "payment_enum" AS ENUM('waiting_for_payment', 'collecting', 'shipping', 'waiting_on_branch', 'finished', 'cancelled');
 
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 CREATE TABLE IF NOT EXISTS "orders" (
     "id" UUID PRIMARY KEY,
     "external_id" VARCHAR NOT NULL,
@@ -11,7 +13,7 @@ CREATE TABLE IF NOT EXISTS "orders" (
     "customer_id" UUID,
     "status" payment_enum,
     "to_address" VARCHAR NOT NULL,
-    "to_location" POLYGON NOT NULL,
+    "to_location" GEOMETRY NOT NULL,
     "discount_amount" DECIMAL(10, 2) DEFAULT 0.0,
     "amount" DECIMAL(10, 2) DEFAULT 0.0,
     "delivery_price" DECIMAL(10, 2) DEFAULT 0.0,
@@ -21,6 +23,9 @@ CREATE TABLE IF NOT EXISTS "orders" (
     "deleted_at" BIGINT DEFAULT 0,
     CONSTRAINT "unique_user_phone_deleted_at" UNIQUE ("customer_phone", "deleted_at")
 );
+
+UPDATE "orders"
+SET "to_location" = ST_GeomFromText("to_location"::text, 4326);
 
 
 CREATE TABLE IF NOT EXISTS "order_products" (

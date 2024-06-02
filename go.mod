@@ -4,10 +4,12 @@ go 1.22.2
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/jackc/pgtype v1.14.0
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/joho/godotenv v1.5.1
 	github.com/saidamir98/udevs_pkg v0.0.0-20230619074042-397de4e67eeb
 	github.com/spf13/cast v1.6.0
+	github.com/twpayne/go-geom v1.5.4
 	google.golang.org/grpc v1.64.0
 	google.golang.org/protobuf v1.34.1
 )
@@ -20,7 +22,6 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgproto3/v2 v2.3.3 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/pgtype v1.14.0 // indirect
 	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
