@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package order_notes;
+
+option go_package = "genproto/order_notes";
+
+import "google/protobuf/timestamp.proto";
+
+service OrderStatusNotes {
+    rpc Create(CreateOrderNotes) returns (OrderNotes) {}
+    rpc GetById(OrderNotesPrimaryKey) returns (OrderNotes) {}
+    rpc GetAll(GetListOrderNotesRequest) returns (GetListOrderNotesResponse) {}
+    rpc Update(UpdateOrderNotes) returns (OrderNotes) {}
+    rpc Delete(OrderNotesPrimaryKey) returns (Empty) {}
+}
+
+enum PaymentEnum {
+    waiting_for_payment = 0;
+    collecting = 1;
+    shipping = 2;
+    waiting_on_branch = 3;
+    finished = 4;
+    cancelled = 5;
+}
+
+message Empty {}
+
+message OrderNotesPrimaryKey {
+    string id = 1;
+}
+
+message CreateOrderNotes {
+    string order_id = 1;
+    PaymentEnum status = 2;
+    string user_id = 3;
+    string reason = 4;
+}   
+
+message OrderNotes {
+    string id = 1;
+    string order_id = 2;
+    PaymentEnum status = 3;
+    string user_id = 4;
+    string reason = 5;
+    google.protobuf.Timestamp created_at = 6;
+}
+
+message UpdateOrderNotes {
+    string id = 1;
+    string order_id = 2;
+    PaymentEnum status = 3;
+    string user_id = 4;
+    string reason = 5;
+}
+
+message GetListOrderNotesRequest {
+    int64 offset = 1;
+    int64 limit = 2;
+    string search = 3;
+}
+
+message GetListOrderNotesResponse {
+    int64 Count = 1;
+    repeated OrderNotes OrderNotes = 2;
+}

@@ -13,6 +13,8 @@ import (
 type Store struct {
 	db    *pgxpool.Pool
 	order storage.OrderRepo
+	orderProduct storage.OrderProductsRepo
+	orderNotes storage.OrderNotesRepo
 }
 
 func NewPostgres(ctx context.Context, cfg config.Config) (storage.IStorage, error) {
@@ -60,4 +62,18 @@ func (s *Store) Order() storage.OrderRepo {
 		s.order = NewOrderRepo(s.db)
 	}
 	return s.order
+}
+
+func (s *Store) OrderProduct() storage.OrderProductsRepo {
+	if s.orderProduct == nil {
+		s.orderProduct = NewOrderProductsRepo(s.db)
+	}
+	return s.orderProduct
+}
+
+func (s *Store) OrderNotes() storage.OrderNotesRepo {
+	if s.orderNotes == nil {
+		s.orderNotes = NewOrderNotesRepo(s.db)
+	}
+	return s.orderNotes
 }
