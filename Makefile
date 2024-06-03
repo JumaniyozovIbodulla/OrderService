@@ -10,3 +10,6 @@ swag_init:
 
 run:
 	go run cmd/main.go
+	
+git-push:
+	git push origin main

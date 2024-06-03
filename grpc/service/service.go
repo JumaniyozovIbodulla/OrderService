@@ -76,3 +76,15 @@ func (o *OrderService) Delete(ctx context.Context, req *order_service.OrderPrima
 	}
 	return
 }
+
+func (f *OrderService) GetAll(ctx context.Context, req *order_service.GetListOrderRequest) (resp *order_service.GetListOrderResponse, err error) {
+	f.log.Info("Get All Orders: ", logger.Any("req", req))
+
+	resp, err = f.strg.Order().GetAll(ctx, req)
+
+	if err != nil {
+		f.log.Error("failed to get all orders: ", logger.Error(err))
+		return
+	}
+	return
+}

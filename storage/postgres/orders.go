@@ -132,7 +132,7 @@ func NewOrderRepo(db *pgxpool.Pool) storage.OrderRepo {
 	}
 }
 
-func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) (*order_service.Order, error) {
+func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) (resp *order_service.Order, err error) {
 	id := uuid.New()
 
 	orderType := mapOrderTypeToPostgreSQL(req.Type)
@@ -142,26 +142,26 @@ func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) 
 
 	if err != nil {
 		log.Println("failed to convert req.ToLocation: ", err)
-		return nil, err
+		return
 	}
 	_, err = o.db.Exec(ctx, `INSERT INTO orders(id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, to_location, discount_amount, amount, delivery_price, paid)
 	VALUES($1, $2, $3, $4, $5, $6, $7, $8, ST_GeomFromText($9, 4326), $10, $11, $12, $13);`, id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentStatus, req.ToAddress, toLocationWKT, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid)
 
 	if err != nil {
 		log.Println("failed to insert data to orders table: ", err)
-		return nil, err
+		return
 	}
-	order, err := o.GetById(ctx, &order_service.OrderPrimaryKey{Id: id.String()})
+	resp, err = o.GetById(ctx, &order_service.OrderPrimaryKey{Id: id.String()})
 
 	if err != nil {
 		log.Println("failed to get data after insert data to orders table: ", err)
-		return nil, err
+		return
 	}
-	return order, nil
+	return
 }
 
-func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimaryKey) (*order_service.Order, error) {
-	resp := &order_service.Order{}
+func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimaryKey) (resp *order_service.Order, err error) {
+	resp = &order_service.Order{}
 
 	row := o.db.QueryRow(ctx, `
 		SELECT id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, ST_AsText(to_location), discount_amount, amount, delivery_price, paid, created_at, updated_at, deleted_at
@@ -173,7 +173,7 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 	var orderType, paymentStatus pgtype.Text
 	var createdAt, updatedAt pgtype.Timestamptz
 
-	err := row.Scan(
+	err = row.Scan(
 		&resp.Id, &resp.ExternalId, &orderType, &resp.CustomerPhone, &resp.CustomerName, &resp.CustomerId,
 		&paymentStatus, &resp.ToAddress, &toLocationWKT, &resp.DiscountAmount, &resp.Amount, &resp.DeliveryPrice,
 		&resp.Paid, &createdAt, &updatedAt, &resp.DeletedAt,
@@ -181,7 +181,7 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 
 	if err != nil {
 		log.Println("failed to get a data from orders table: ", err)
-		return nil, err
+		return
 	}
 
 	resp.Type = mapPostgreSQLToOrderType(orderType.String)
@@ -190,12 +190,12 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 	resp.ToLocation, err = fromWKT(toLocationWKT)
 	if err != nil {
 		log.Println("failed to convert WKT to Polygon: ", err)
-		return nil, err
+		return
 	}
 
 	resp.CreatedAt = timeToTimestamp(createdAt.Time)
 	resp.UpdatedAt = timeToTimestamp(updatedAt.Time)
-	return resp, nil
+	return
 }
 
 func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) (resp *order_service.Order, err error) {
@@ -238,6 +238,81 @@ func (o *orderRepo) Delete(ctx context.Context, req *order_service.OrderPrimaryK
 
 	if err != nil {
 		log.Println("failed to delete an order: ", err)
+		return
+	}
+	return
+}
+
+func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderRequest) (resp *order_service.GetListOrderResponse, err error) {
+	resp = &order_service.GetListOrderResponse{}
+	filter := ""
+
+	if req.Search != "" {
+		filter = ` AND customer_name ILIKE '%` + req.Search + `%' `
+	}
+	
+	rows, err := o.db.Query(ctx, ` 
+	SELECT
+	id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, ST_AsText(to_location), discount_amount, amount, delivery_price, paid, created_at, updated_at, deleted_at
+	FROM
+		orders
+	WHERE TRUE ` + filter + `
+	OFFSET
+		$1
+	LIMIT
+		$2;`, req.Offset, req.Limit)
+
+	if err != nil {
+		log.Println("failed to get all data from orders table: ", err)
+		return
+	}
+
+	for rows.Next() {
+		var (
+				order order_service.Order
+		 		toLocationWKT string
+		 		orderType, paymentStatus pgtype.Text
+		 		createdAt, updatedAt pgtype.Timestamptz
+			)
+		
+		if err = rows.Scan(
+			&order.Id,
+			&order.ExternalId,
+			&orderType,
+			&order.CustomerPhone,
+			&order.CustomerName,
+			&order.CustomerId,
+			&paymentStatus,
+			&order.ToAddress,
+			&toLocationWKT,
+			&order.DiscountAmount,
+			&order.Amount,
+			&order.DeliveryPrice,
+			&order.Paid,
+			&createdAt,
+			&updatedAt,
+			&order.DeletedAt); err != nil {
+			return
+		}
+
+		order.Type = mapPostgreSQLToOrderType(orderType.String)
+		order.Status = mapPostgreSQLToPaymentEnum(paymentStatus.String)
+
+		order.ToLocation, err = fromWKT(toLocationWKT)
+		if err != nil {
+			log.Println("failed to convert WKT to Polygon: ", err)
+			return
+		}
+
+		order.CreatedAt = timeToTimestamp(createdAt.Time)
+		order.UpdatedAt = timeToTimestamp(updatedAt.Time)
+
+		resp.Orders = append(resp.Orders, &order)
+	}
+
+	err = o.db.QueryRow(ctx, `SELECT COUNT(*) FROM orders WHERE TRUE `+filter+``).Scan(&resp.Count)
+	if err != nil {
+		log.Println("failed to get count of orders: ", err)
 		return
 	}
 	return
