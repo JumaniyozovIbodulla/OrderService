@@ -1,0 +1,3 @@
+[submodule "uzum_protos"]
+	path = uzum_protos
+	url = git@github.com:boriyevmahmud/uzum_protos.git
