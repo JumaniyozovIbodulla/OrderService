@@ -95,7 +95,6 @@ message UpdateOrder {
     double amount = 11;
     double delivery_price = 12;
     bool paid = 13;
-    google.protobuf.Timestamp updated_at = 14;
     int64 deleted_at = 15;
 }
 

@@ -101,7 +101,7 @@ func fromWKT(wktString string) (*order_service.Polygon, error) {
 	switch g := g.(type) {
 	case *geom.Polygon:
 		var points []*order_service.Point
-		for _, ring := range g.Coords() { 
+		for _, ring := range g.Coords() {
 			for _, coord := range ring {
 				point := &order_service.Point{
 					Latitude:  coord.Y(),
@@ -197,10 +197,48 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 	resp.UpdatedAt = timeToTimestamp(updatedAt.Time)
 	return resp, nil
 }
-/*
 
-ALTER TABLE orders
-ALTER COLUMN to_location TYPE geometry USING ST_GeomFromText(to_location::text, 4326);
+func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) (resp *order_service.Order, err error) {
+
+	orderType := mapOrderTypeToPostgreSQL(req.Type)
+	paymentStatus := mapPaymentEnumToPostgreSQL(req.Status)
+
+	toLocationWKT, err := toWKT(req.ToLocation)
+
+	if err != nil {
+		log.Println("failed to convert to location to update order table: ", err)
+		return
+	}
+
+	_, err = o.db.Exec(ctx, `
+	UPDATE
+		orders
+	SET
+		external_id = $2, type = $3, customer_phone = $4, customer_name = $5, customer_id = $6, status = $7, to_address = $8, to_location = $9, discount_amount = $10, amount = $11, delivery_price = $12, paid = $13, updated_at = NOW(), deleted_at = $14
+	WHERE
+		id = $1;`, req.Id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentStatus, req.ToAddress, toLocationWKT, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.DeletedAt)
+
+	if err != nil {
+		log.Println("failed to update orders table: ", err)
+		return
+	}
+
+	resp, err = o.GetById(ctx, &order_service.OrderPrimaryKey{Id: req.Id})
+
+	if err != nil {
+		log.Println("failed to get data after update data to orders table: ", err)
+		return
+	}
+	return
+}
 
 
-*/
+func (o *orderRepo) Delete(ctx context.Context, req *order_service.OrderPrimaryKey) (resp *order_service.Empty, err error) {
+	_, err = o.db.Exec(ctx, `DELETE FROM orders WHERE id = $1;`, req.Id)
+
+	if err != nil {
+		log.Println("failed to delete an order: ", err)
+		return
+	}
+	return
+}

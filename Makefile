@@ -7,3 +7,6 @@ gen-proto:
 
 swag_init:
 	swag init -g api/main.go -o api/docs
+
+run:
+	go run cmd/main.go
