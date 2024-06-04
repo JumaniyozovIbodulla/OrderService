@@ -25,16 +25,16 @@ type OrderRepo interface {
 
 type OrderProductsRepo interface {
 	Create(ctx context.Context, req *orp.CreateOrderProduct) (resp *orp.OrderProduct, err error)
-	// GetById(ctx context.Context, req *orp.OrderProductPrimaryKey) (*orp.OrderProduct, error)
-	// GetAll(ctx context.Context, req *orp.GetListOrderProductRequest) (resp *orp.GetListOrderProductResponse, err error)
-	// Update(ctx context.Context, req *orp.UpdateOrderProduct) (resp *orp.OrderProduct, err error)
-	// Delete(ctx context.Context, req *orp.OrderProductPrimaryKey) (resp *orp.Empty, err error)
+	GetById(ctx context.Context, req *orp.OrderProductPrimaryKey) (resp *orp.OrderProduct, err error)
+	GetAll(ctx context.Context, req *orp.GetListOrderProductRequest) (resp *orp.GetListOrderProductResponse, err error)
+	Update(ctx context.Context, req *orp.UpdateOrderProduct) (resp *orp.OrderProduct, err error)
+	Delete(ctx context.Context, req *orp.OrderProductPrimaryKey) (resp *orp.Empty, err error)
 }
 
 type OrderNotesRepo interface {
 	Create(ctx context.Context, req *orn.CreateOrderNotes) (resp *orn.OrderNotes, err error)
-	// GetById(ctx context.Context, req *orn.OrderNotesPrimaryKey) (*orn.OrderNotes, error)
-	// GetAll(ctx context.Context, req *orn.GetListOrderNotesRequest) (resp *orn.GetListOrderNotesResponse, err error)
-	// Update(ctx context.Context, req *orn.UpdateOrderNotes) (resp *orn.OrderNotes, err error)
-	// Delete(ctx context.Context, req *orn.OrderNotesPrimaryKey) (resp *orn.Empty, err error)
+	GetById(ctx context.Context, req *orn.OrderNotesPrimaryKey) (*orn.OrderNotes, error)
+	GetAll(ctx context.Context, req *orn.GetListOrderNotesRequest) (resp *orn.GetListOrderNotesResponse, err error)
+	Update(ctx context.Context, req *orn.UpdateOrderNotes) (resp *orn.OrderNotes, err error)
+	Delete(ctx context.Context, req *orn.OrderNotesPrimaryKey) (resp *orn.Empty, err error)
 }

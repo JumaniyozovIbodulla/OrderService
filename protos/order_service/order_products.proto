@@ -4,8 +4,6 @@ package order_products;
 
 option go_package = "genproto/order_product_service";
 
-import "google/protobuf/timestamp.proto";
-
 service OrderProducts {
     rpc Create(CreateOrderProduct) returns (OrderProduct) {}
     rpc GetById(OrderProductPrimaryKey) returns (OrderProduct) {}
@@ -35,8 +33,8 @@ message OrderProduct {
     double discount_price = 4;
     double price = 5;
     string order_id = 6;
-    google.protobuf.Timestamp created_at = 7;
-    google.protobuf.Timestamp updated_at = 8;
+    string created_at = 7;
+    string updated_at = 8;
     int64 deleted_at = 9;
 }
 
@@ -53,7 +51,6 @@ message UpdateOrderProduct {
 message GetListOrderProductRequest {
     int64 offset = 1;
     int64 limit = 2;
-    string search = 3;
 }
 
 message GetListOrderProductResponse {

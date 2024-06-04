@@ -37,13 +37,25 @@ func main() {
 
 	defer pgStore.CloseDB()
 
-	srvs, err := client.NewGrpcClients(cfg)
+	order, err := client.NewGrpcOrderClients(cfg)
 
 	if err != nil {
 		log.Panic("client.NewGrpcClients: ", logger.Error(err))
 	}
 
-	grpcServer := grpc.SetUpServer(cfg, log, pgStore, srvs)
+	orderProduct, err := client.NewGrpcOrderProductClients(cfg)
+
+	if err != nil {
+		log.Panic("client.NewGrpcOrderProductClients: ", logger.Error(err))
+	}
+
+	orderNotes, err := client.NewGrpcOrderNotesClients(cfg)
+
+	if err != nil {
+		log.Panic("client.NewGrpcOrderNotesClients: ", logger.Error(err))
+	}
+
+	grpcServer := grpc.SetUpServer(cfg, log, pgStore, order, orderProduct, orderNotes)
 
 	lis, err := net.Listen("tcp", cfg.ContentGRPCPort)
 

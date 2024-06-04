@@ -3,18 +3,15 @@ package postgres
 import (
 	"context"
 	"fmt"
-	"log"
 	"order/genproto/order_service"
 	"order/storage"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/twpayne/go-geom"
 	"github.com/twpayne/go-geom/encoding/wkt"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func toWKT(polygon *order_service.Polygon) (string, error) {
@@ -115,12 +112,6 @@ func fromWKT(wktString string) (*order_service.Polygon, error) {
 		return nil, fmt.Errorf("invalid WKT: expected Polygon")
 	}
 }
-func timeToTimestamp(t time.Time) *timestamppb.Timestamp {
-	if t.IsZero() {
-		return nil
-	}
-	return timestamppb.New(t)
-}
 
 type orderRepo struct {
 	db *pgxpool.Pool
@@ -141,20 +132,17 @@ func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) 
 	toLocationWKT, err := toWKT(req.ToLocation)
 
 	if err != nil {
-		log.Println("failed to convert req.ToLocation: ", err)
 		return
 	}
 	_, err = o.db.Exec(ctx, `INSERT INTO orders(id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, to_location, discount_amount, amount, delivery_price, paid)
 	VALUES($1, $2, $3, $4, $5, $6, $7, $8, ST_GeomFromText($9, 4326), $10, $11, $12, $13);`, id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentStatus, req.ToAddress, toLocationWKT, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid)
 
 	if err != nil {
-		log.Println("failed to insert data to orders table: ", err)
 		return
 	}
 	resp, err = o.GetById(ctx, &order_service.OrderPrimaryKey{Id: id.String()})
 
 	if err != nil {
-		log.Println("failed to get data after insert data to orders table: ", err)
 		return
 	}
 	return
@@ -164,23 +152,21 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 	resp = &order_service.Order{}
 
 	row := o.db.QueryRow(ctx, `
-		SELECT id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, ST_AsText(to_location), discount_amount, amount, delivery_price, paid, created_at, updated_at, deleted_at
+		SELECT id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, ST_AsText(to_location), discount_amount, amount, delivery_price, paid, TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM'), TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM'), deleted_at
 		FROM orders
 		WHERE id = $1;
 	`, req.Id)
 
 	var toLocationWKT string
 	var orderType, paymentStatus pgtype.Text
-	var createdAt, updatedAt pgtype.Timestamptz
 
 	err = row.Scan(
 		&resp.Id, &resp.ExternalId, &orderType, &resp.CustomerPhone, &resp.CustomerName, &resp.CustomerId,
 		&paymentStatus, &resp.ToAddress, &toLocationWKT, &resp.DiscountAmount, &resp.Amount, &resp.DeliveryPrice,
-		&resp.Paid, &createdAt, &updatedAt, &resp.DeletedAt,
+		&resp.Paid, &resp.CreatedAt, &resp.UpdatedAt, &resp.DeletedAt,
 	)
 
 	if err != nil {
-		log.Println("failed to get a data from orders table: ", err)
 		return
 	}
 
@@ -189,12 +175,8 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 
 	resp.ToLocation, err = fromWKT(toLocationWKT)
 	if err != nil {
-		log.Println("failed to convert WKT to Polygon: ", err)
 		return
 	}
-
-	resp.CreatedAt = timeToTimestamp(createdAt.Time)
-	resp.UpdatedAt = timeToTimestamp(updatedAt.Time)
 	return
 }
 
@@ -206,7 +188,6 @@ func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) 
 	toLocationWKT, err := toWKT(req.ToLocation)
 
 	if err != nil {
-		log.Println("failed to convert to location to update order table: ", err)
 		return
 	}
 
@@ -219,25 +200,21 @@ func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) 
 		id = $1;`, req.Id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentStatus, req.ToAddress, toLocationWKT, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.DeletedAt)
 
 	if err != nil {
-		log.Println("failed to update orders table: ", err)
 		return
 	}
 
 	resp, err = o.GetById(ctx, &order_service.OrderPrimaryKey{Id: req.Id})
 
 	if err != nil {
-		log.Println("failed to get data after update data to orders table: ", err)
 		return
 	}
 	return
 }
 
-
 func (o *orderRepo) Delete(ctx context.Context, req *order_service.OrderPrimaryKey) (resp *order_service.Empty, err error) {
-	_, err = o.db.Exec(ctx, `DELETE FROM orders WHERE id = $1;`, req.Id)
+	_, err = o.db.Exec(ctx, `UPDATE orders SET deleted_at = EXTRACT(EPOCH FROM NOW()) WHERE id = $1;`, req.Id)
 
 	if err != nil {
-		log.Println("failed to delete an order: ", err)
 		return
 	}
 	return
@@ -250,31 +227,29 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 	if req.Search != "" {
 		filter = ` AND customer_name ILIKE '%` + req.Search + `%' `
 	}
-	
+
 	rows, err := o.db.Query(ctx, ` 
 	SELECT
-	id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, ST_AsText(to_location), discount_amount, amount, delivery_price, paid, created_at, updated_at, deleted_at
+	id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, ST_AsText(to_location), discount_amount, amount, delivery_price, paid, TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM'), TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM'), deleted_at
 	FROM
 		orders
-	WHERE TRUE ` + filter + `
+	WHERE TRUE `+filter+` AND deleted_at = 0
 	OFFSET
 		$1
 	LIMIT
 		$2;`, req.Offset, req.Limit)
 
 	if err != nil {
-		log.Println("failed to get all data from orders table: ", err)
 		return
 	}
 
 	for rows.Next() {
 		var (
-				order order_service.Order
-		 		toLocationWKT string
-		 		orderType, paymentStatus pgtype.Text
-		 		createdAt, updatedAt pgtype.Timestamptz
-			)
-		
+			order                    order_service.Order
+			toLocationWKT            string
+			orderType, paymentStatus pgtype.Text
+		)
+
 		if err = rows.Scan(
 			&order.Id,
 			&order.ExternalId,
@@ -289,8 +264,8 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 			&order.Amount,
 			&order.DeliveryPrice,
 			&order.Paid,
-			&createdAt,
-			&updatedAt,
+			&order.CreatedAt,
+			&order.UpdatedAt,
 			&order.DeletedAt); err != nil {
 			return
 		}
@@ -300,19 +275,14 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 
 		order.ToLocation, err = fromWKT(toLocationWKT)
 		if err != nil {
-			log.Println("failed to convert WKT to Polygon: ", err)
 			return
 		}
-
-		order.CreatedAt = timeToTimestamp(createdAt.Time)
-		order.UpdatedAt = timeToTimestamp(updatedAt.Time)
 
 		resp.Orders = append(resp.Orders, &order)
 	}
 
-	err = o.db.QueryRow(ctx, `SELECT COUNT(*) FROM orders WHERE TRUE `+filter+``).Scan(&resp.Count)
+	err = o.db.QueryRow(ctx, `SELECT COUNT(*) FROM orders WHERE TRUE `+filter+` AND deleted_at = 0`).Scan(&resp.Count)
 	if err != nil {
-		log.Println("failed to get count of orders: ", err)
 		return
 	}
 	return
