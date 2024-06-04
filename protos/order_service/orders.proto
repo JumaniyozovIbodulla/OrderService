@@ -26,13 +26,9 @@ enum PaymentEnum {
     cancelled = 5;
 }
 
-message Point {
+message Location {
     double latitude = 1;
     double longitude = 2;
-}
-
-message Polygon {
-    repeated Point points = 1;
 }
 
 message Empty {}
@@ -49,7 +45,7 @@ message CreateOrder {
     string customer_id = 5;
     PaymentEnum status = 6;
     string to_address = 7;
-    Polygon to_location = 8;
+    Location to_location = 8;
     double discount_amount = 9;
     double amount = 10;
     double delivery_price = 11;
@@ -69,7 +65,7 @@ message Order {
     string customer_id = 6;
     PaymentEnum status = 7;
     string to_address = 8;
-    Polygon to_location = 9;
+    Location to_location = 9;
     double discount_amount = 10;
     double amount = 11;
     double delivery_price = 12;
@@ -88,7 +84,7 @@ message UpdateOrder {
     string customer_id = 6;
     PaymentEnum status = 7;
     string to_address = 8;
-    Polygon to_location = 9;
+    Location to_location = 9;
     double discount_amount = 10;
     double amount = 11;
     double delivery_price = 12;

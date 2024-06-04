@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS "orders" (
     "customer_id" UUID,
     "status" payment_enum,
     "to_address" VARCHAR NOT NULL,
-    "to_location" GEOMETRY NOT NULL,
+    "to_location" GEOMETRY(POINT, 4326) NOT NULL,
     "discount_amount" DECIMAL(10, 2) DEFAULT 0.0,
     "amount" DECIMAL(10, 2) DEFAULT 0.0,
     "delivery_price" DECIMAL(10, 2) DEFAULT 0.0,
