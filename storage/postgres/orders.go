@@ -40,6 +40,32 @@ func mapPaymentEnumToPostgreSQL(paymentType order_service.PaymentEnum) string {
 	}
 }
 
+func mapPaymentTypeToPostgreSQL(paymentType order_service.PaymentType) string {
+	switch paymentType {
+	case order_service.PaymentType_uzum:
+		return "uzum"
+	case order_service.PaymentType_cash:
+		return "cash"
+	case order_service.PaymentType_terminal:
+		return "terminal"
+	default:
+		return ""
+	}
+}
+
+func mapPostgreSQLToPaymentType(paymentType string) order_service.PaymentType {
+	switch paymentType {
+	case "uzum":
+		return order_service.PaymentType_uzum
+	case "cash":
+		return order_service.PaymentType_cash
+	case "terminal":
+		return order_service.PaymentType_terminal
+	default:
+		return order_service.PaymentType(0)
+	}
+}
+
 func mapPostgreSQLToOrderType(orderType string) order_service.TypeEnum {
 	switch orderType {
 	case "self_pickup":
@@ -83,12 +109,14 @@ func NewOrderRepo(db *pgxpool.Pool) storage.OrderRepo {
 func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) (resp *order_service.Order, err error) {
 	id := uuid.New()
 
+	paymentType := mapPaymentTypeToPostgreSQL(req.PaymentType)
 	orderType := mapOrderTypeToPostgreSQL(req.Type)
 	paymentStatus := mapPaymentEnumToPostgreSQL(req.Status)
 
-	_, err = o.db.Exec(ctx, `INSERT INTO orders(id, external_id, type, customer_phone, customer_name, customer_id, status, to_address, to_location, discount_amount, amount, delivery_price, paid)
-	VALUES($1, $2, $3, $4, $5, $6, $7, $8, ST_SetSRID(ST_MakePoint($9, $10), 4326), $11, $12, $13, $14);`, id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid)
-
+	_, err = o.db.Exec(ctx, `
+	INSERT INTO 
+		orders(id, external_id, type, customer_phone, customer_name, customer_id, payment_type, status, to_address, to_location, discount_amount, amount, delivery_price, paid, courier_id, courier_phone, courier_name)
+	VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_MakePoint($10, $11), 4326), $12, $13, $14, $15, $16, $17, $18);`, id, req.ExternalId, orderType, req.CourierPhone, req.CustomerName, req.CustomerId, paymentType, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.CourierId, req.CourierPhone, req.CourierName)
 	if err != nil {
 		return
 	}
@@ -111,6 +139,7 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 			customer_phone, 
 			customer_name, 
 			customer_id, 
+			payment_type,
 			status, 
 			to_address, 
 			ST_Y(to_location) AS latitude, 
@@ -119,6 +148,9 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 			amount, 
 			delivery_price, 
 			paid, 
+			courier_id,
+			courier_phone,
+			courier_name,
 			TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS created_at, 
 			TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS updated_at, 
 			deleted_at
@@ -129,14 +161,14 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 	`, req.Id)
 
 	var (
-		orderType, paymentStatus pgtype.Text
+		paymentType, orderType, paymentStatus pgtype.Text
 		longitude, latitude      float64
 	)
 
 	err = row.Scan(
-		&resp.Id, &resp.ExternalId, &orderType, &resp.CustomerPhone, &resp.CustomerName, &resp.CustomerId,
+		&resp.Id, &resp.ExternalId, &orderType, &resp.CustomerPhone, &resp.CustomerName, &resp.CustomerId, &paymentType,
 		&paymentStatus, &resp.ToAddress, &latitude, &longitude, &resp.DiscountAmount, &resp.Amount, &resp.DeliveryPrice,
-		&resp.Paid, &resp.CreatedAt, &resp.UpdatedAt, &resp.DeletedAt,
+		&resp.Paid, &resp.CourierId, &resp.CourierPhone, &resp.CourierName, &resp.CreatedAt, &resp.UpdatedAt, &resp.DeletedAt,
 	)
 
 	if err != nil {
@@ -147,14 +179,15 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 		Longitude: longitude,
 	}
 
+	resp.PaymentType = mapPostgreSQLToPaymentType(paymentType.String)
 	resp.Type = mapPostgreSQLToOrderType(orderType.String)
 	resp.Status = mapPostgreSQLToPaymentEnum(paymentStatus.String)
-
 	return
 }
 
 func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) (resp *order_service.Order, err error) {
 
+	paymentType := mapPaymentTypeToPostgreSQL(req.PaymentType)
 	orderType := mapOrderTypeToPostgreSQL(req.Type)
 	paymentStatus := mapPaymentEnumToPostgreSQL(req.Status)
 
@@ -162,9 +195,9 @@ func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) 
 	UPDATE
 		orders
 	SET
-		external_id = $2, type = $3, customer_phone = $4, customer_name = $5, customer_id = $6, status = $7, to_address = $8, to_location = ST_SetSRID(ST_MakePoint($9, $10), 4326), discount_amount = $11, amount = $12, delivery_price = $13, paid = $14, updated_at = NOW(), deleted_at = $15
+		external_id = $2, type = $3, customer_phone = $4, customer_name = $5, customer_id = $6, payment_type = $7, status = $8, to_address = $9, to_location = ST_SetSRID(ST_MakePoint($10, $11), 4326), discount_amount = $12, amount = $13, delivery_price = $14, paid = $15, courier_id = $16, courier_phone = $17, courier_name = $18, updated_at = NOW(), deleted_at = $19
 	WHERE
-		id = $1;`, req.Id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.DeletedAt)
+		id = $1;`, req.Id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentType, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.CourierId, req.CourierPhone, req.CourierName, req.DeletedAt)
 
 	if err != nil {
 		return
@@ -196,13 +229,14 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 	}
 
 	rows, err := o.db.Query(ctx, ` 
-	SELECT
+	SELECT 
 		id, 
 		external_id, 
 		type, 
 		customer_phone, 
 		customer_name, 
 		customer_id, 
+		payment_type,
 		status, 
 		to_address, 
 		ST_Y(to_location) AS latitude, 
@@ -211,6 +245,9 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 		amount, 
 		delivery_price, 
 		paid, 
+		courier_id,
+		courier_phone,
+		courier_name,
 		TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS created_at, 
 		TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS updated_at, 
 		deleted_at
@@ -229,7 +266,7 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 	for rows.Next() {
 		var (
 			order                    order_service.Order
-			orderType, paymentStatus pgtype.Text
+			paymentType, orderType, paymentStatus pgtype.Text
 			longitude, latitude      float64
 		)
 
@@ -240,6 +277,7 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 			&order.CustomerPhone,
 			&order.CustomerName,
 			&order.CustomerId,
+			&paymentType,
 			&paymentStatus,
 			&order.ToAddress,
 			&latitude,
@@ -248,12 +286,16 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 			&order.Amount,
 			&order.DeliveryPrice,
 			&order.Paid,
+			&order.CourierId,
+			&order.CourierPhone,
+			&order.CourierName,
 			&order.CreatedAt,
 			&order.UpdatedAt,
 			&order.DeletedAt); err != nil {
 			return
 		}
 
+		order.PaymentType = mapPostgreSQLToPaymentType(paymentType.String)
 		order.Type = mapPostgreSQLToOrderType(orderType.String)
 		order.Status = mapPostgreSQLToPaymentEnum(paymentStatus.String)
 

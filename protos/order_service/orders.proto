@@ -26,6 +26,12 @@ enum PaymentEnum {
     cancelled = 5;
 }
 
+enum PaymentType {
+    uzum = 0;
+    cash = 1;
+    terminal = 2;
+}
+
 message Location {
     double latitude = 1;
     double longitude = 2;
@@ -43,16 +49,17 @@ message CreateOrder {
     string customer_phone = 3;
     string customer_name = 4;
     string customer_id = 5;
-    PaymentEnum status = 6;
-    string to_address = 7;
-    Location to_location = 8;
-    double discount_amount = 9;
-    double amount = 10;
-    double delivery_price = 11;
-    bool paid = 12;
-    string created_at = 13;
-    string updated_at = 14;
-    int64 deleted_at = 15;
+    PaymentType payment_type = 6;
+    PaymentEnum status = 7;
+    string to_address = 8;
+    Location to_location = 9;
+    double discount_amount = 10;
+    double amount = 11;
+    double delivery_price = 12;
+    bool paid = 13;
+    string courier_id = 14;
+    string courier_phone = 15;
+    string courier_name = 16;
 }   
 
 
@@ -63,16 +70,20 @@ message Order {
     string customer_phone = 4;
     string customer_name = 5;
     string customer_id = 6;
-    PaymentEnum status = 7;
-    string to_address = 8;
-    Location to_location = 9;
-    double discount_amount = 10;
-    double amount = 11;
-    double delivery_price = 12;
-    bool paid = 13;
-    string created_at = 14;
-    string updated_at = 15;
-    int64 deleted_at = 16;
+    PaymentType payment_type = 7;
+    PaymentEnum status = 8;
+    string to_address = 9;
+    Location to_location = 10;
+    double discount_amount = 11;
+    double amount = 12;
+    double delivery_price = 13;
+    bool paid = 14;
+    string courier_id = 15;
+    string courier_phone = 16;
+    string courier_name = 17;
+    string created_at = 18;
+    string updated_at = 19;
+    int64 deleted_at = 20;
 }
 
 message UpdateOrder {
@@ -82,14 +93,18 @@ message UpdateOrder {
     string customer_phone = 4;
     string customer_name = 5;
     string customer_id = 6;
-    PaymentEnum status = 7;
-    string to_address = 8;
-    Location to_location = 9;
-    double discount_amount = 10;
-    double amount = 11;
-    double delivery_price = 12;
-    bool paid = 13;
-    int64 deleted_at = 15;
+    PaymentType payment_type = 7;
+    PaymentEnum status = 8;
+    string to_address = 9;
+    Location to_location = 10;
+    double discount_amount = 11;
+    double amount = 12;
+    double delivery_price = 13;
+    bool paid = 14;
+    string courier_id = 15;
+    string courier_phone = 16;
+    string courier_name = 17;
+    int64 deleted_at = 20;
 }
 
 message GetListOrderRequest {
