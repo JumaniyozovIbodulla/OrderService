@@ -1,3 +1,6 @@
 [submodule "protos"]
     path = protos
     url = empty
+[submodule "proto"]
+	path = proto
+	url = git@github.com:SunnatilloTilavov/proto.git
