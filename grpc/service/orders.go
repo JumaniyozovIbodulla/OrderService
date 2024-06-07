@@ -43,26 +43,26 @@ func (f *OrderService) Update(ctx context.Context, req *order_service.UpdateOrde
 	return resp, nil
 }
 
-func (o *OrderService) Delete(ctx context.Context, req *order_service.OrderPrimaryKey) (resp *order_service.Empty, err error) {
+func (o *OrderService) Delete(ctx context.Context, req *order_service.OrderPrimaryKey) (*order_service.Empty, error) {
 	o.log.Info("Delete an order: ", logger.Any("req", req))
 
-	resp, err = o.strg.Order().Delete(ctx, req)
+	resp, err := o.strg.Order().Delete(ctx, req)
 
 	if err != nil {
 		o.log.Error("Delete an Order: ", logger.Error(err))
-		return
+		return nil, err
 	}
-	return
+	return resp, nil
 }
 
-func (f *OrderService) GetAll(ctx context.Context, req *order_service.GetListOrderRequest) (resp *order_service.GetListOrderResponse, err error) {
+func (f *OrderService) GetAll(ctx context.Context, req *order_service.GetListOrderRequest) (*order_service.GetListOrderResponse, error) {
 	f.log.Info("Get All Orders: ", logger.Any("req", req))
 
-	resp, err = f.strg.Order().GetAll(ctx, req)
+	resp, err := f.strg.Order().GetAll(ctx, req)
 
 	if err != nil {
 		f.log.Error("failed to get all orders: ", logger.Error(err))
-		return
+		return nil, err
 	}
-	return
+	return resp, nil
 }
