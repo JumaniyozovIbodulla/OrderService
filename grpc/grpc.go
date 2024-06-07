@@ -14,12 +14,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-func SetUpServer(cfg config.Config, log logger.LoggerI, strg storage.IStorage, ordSerManager client.OrderServiceManager, ordProductManager client.OrderProductsManager, ordNotes client.OrderNotesManager) (grpcServer *grpc.Server) {
-	grpcServer = grpc.NewServer()
+func SetUpServer(cfg config.Config, log logger.LoggerI, strg storage.IStorage, ordSerManager client.OrderServiceManager, ordProductManager client.OrderProductsManager, ordNotes client.OrderNotesManager) *grpc.Server {
+	grpcServer := grpc.NewServer()
 
 	order_service.RegisterOrderServiceServer(grpcServer, service.NewOrderService(cfg, log, strg, ordSerManager))
 	order_product_service.RegisterOrderProductsServer(grpcServer, service.NewOrderProductService(cfg, log, strg, ordProductManager))
 	order_notes.RegisterOrderStatusNotesServer(grpcServer, service.NewOrderNotesService(cfg, log, strg, ordNotes))
 	reflection.Register(grpcServer)
-	return 
+	return grpcServer
 }

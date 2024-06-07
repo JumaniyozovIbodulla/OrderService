@@ -2,8 +2,8 @@ package service
 
 import (
 	"order/config"
-	"order/genproto/order_product_service"
 	"order/genproto/order_notes"
+	"order/genproto/order_product_service"
 	"order/genproto/order_service"
 	"order/grpc/client"
 	"order/storage"
@@ -27,7 +27,6 @@ type OrderProductService struct {
 	*order_product_service.UnimplementedOrderProductsServer
 }
 
-
 type OrderNotesService struct {
 	cfg      config.Config
 	log      logger.LoggerI
@@ -45,7 +44,6 @@ func NewOrderService(cfg config.Config, log logger.LoggerI, strg storage.IStorag
 	}
 }
 
-
 func NewOrderProductService(cfg config.Config, log logger.LoggerI, strg storage.IStorage, srvc client.OrderProductsManager) *OrderProductService {
 	return &OrderProductService{
 		cfg:      cfg,
@@ -54,7 +52,6 @@ func NewOrderProductService(cfg config.Config, log logger.LoggerI, strg storage.
 		services: srvc,
 	}
 }
-
 
 func NewOrderNotesService(cfg config.Config, log logger.LoggerI, strg storage.IStorage, srvc client.OrderNotesManager) *OrderNotesService {
 	return &OrderNotesService{

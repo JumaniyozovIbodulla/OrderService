@@ -106,30 +106,30 @@ func NewOrderRepo(db *pgxpool.Pool) storage.OrderRepo {
 	}
 }
 
-func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) (resp *order_service.Order, err error) {
+func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) (*order_service.Order, error) {
 	id := uuid.New()
 
 	paymentType := mapPaymentTypeToPostgreSQL(req.PaymentType)
 	orderType := mapOrderTypeToPostgreSQL(req.Type)
 	paymentStatus := mapPaymentEnumToPostgreSQL(req.Status)
 
-	_, err = o.db.Exec(ctx, `
+	_, err := o.db.Exec(ctx, `
 	INSERT INTO 
 		orders(id, external_id, type, customer_phone, customer_name, customer_id, payment_type, status, to_address, to_location, discount_amount, amount, delivery_price, paid, courier_id, courier_phone, courier_name)
 	VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_MakePoint($10, $11), 4326), $12, $13, $14, $15, $16, $17, $18);`, id, req.ExternalId, orderType, req.CourierPhone, req.CustomerName, req.CustomerId, paymentType, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.CourierId, req.CourierPhone, req.CourierName)
 	if err != nil {
-		return
+		return nil, err
 	}
-	resp, err = o.GetById(ctx, &order_service.OrderPrimaryKey{Id: id.String()})
+	resp, err := o.GetById(ctx, &order_service.OrderPrimaryKey{Id: id.String()})
 
 	if err != nil {
-		return
+		return nil, err
 	}
-	return
+	return resp, nil
 }
 
-func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimaryKey) (resp *order_service.Order, err error) {
-	resp = &order_service.Order{}
+func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimaryKey) (*order_service.Order, error) {
+	resp := &order_service.Order{}
 
 	row := o.db.QueryRow(ctx, `
 		SELECT 
@@ -152,8 +152,7 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 			courier_phone,
 			courier_name,
 			TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS created_at, 
-			TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS updated_at, 
-			deleted_at
+			TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS updated_at
 		FROM 
 			orders
 		WHERE 
@@ -165,14 +164,14 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 		longitude, latitude      float64
 	)
 
-	err = row.Scan(
+	err := row.Scan(
 		&resp.Id, &resp.ExternalId, &orderType, &resp.CustomerPhone, &resp.CustomerName, &resp.CustomerId, &paymentType,
 		&paymentStatus, &resp.ToAddress, &latitude, &longitude, &resp.DiscountAmount, &resp.Amount, &resp.DeliveryPrice,
-		&resp.Paid, &resp.CourierId, &resp.CourierPhone, &resp.CourierName, &resp.CreatedAt, &resp.UpdatedAt, &resp.DeletedAt,
+		&resp.Paid, &resp.CourierId, &resp.CourierPhone, &resp.CourierName, &resp.CreatedAt, &resp.UpdatedAt,
 	)
 
 	if err != nil {
-		return
+		return nil, err
 	}
 	resp.ToLocation = &order_service.Location{
 		Latitude:  latitude,
@@ -182,16 +181,16 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 	resp.PaymentType = mapPostgreSQLToPaymentType(paymentType.String)
 	resp.Type = mapPostgreSQLToOrderType(orderType.String)
 	resp.Status = mapPostgreSQLToPaymentEnum(paymentStatus.String)
-	return
+	return resp, nil
 }
 
-func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) (resp *order_service.Order, err error) {
+func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) (*order_service.Order, error) {
 
 	paymentType := mapPaymentTypeToPostgreSQL(req.PaymentType)
 	orderType := mapOrderTypeToPostgreSQL(req.Type)
 	paymentStatus := mapPaymentEnumToPostgreSQL(req.Status)
 
-	_, err = o.db.Exec(ctx, `
+	_, err := o.db.Exec(ctx, `
 	UPDATE
 		orders
 	SET
@@ -200,28 +199,28 @@ func (o *orderRepo) Update(ctx context.Context, req *order_service.UpdateOrder) 
 		id = $1;`, req.Id, req.ExternalId, orderType, req.CustomerPhone, req.CustomerName, req.CustomerId, paymentType, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.CourierId, req.CourierPhone, req.CourierName, req.DeletedAt)
 
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	resp, err = o.GetById(ctx, &order_service.OrderPrimaryKey{Id: req.Id})
+	resp, err := o.GetById(ctx, &order_service.OrderPrimaryKey{Id: req.Id})
 
 	if err != nil {
-		return
+		return nil, err
 	}
-	return
+	return resp, nil
 }
 
-func (o *orderRepo) Delete(ctx context.Context, req *order_service.OrderPrimaryKey) (resp *order_service.Empty, err error) {
-	_, err = o.db.Exec(ctx, `UPDATE orders SET deleted_at = EXTRACT(EPOCH FROM NOW()) WHERE id = $1;`, req.Id)
+func (o *orderRepo) Delete(ctx context.Context, req *order_service.OrderPrimaryKey) (*order_service.Empty, error) {
+	_, err := o.db.Exec(ctx, `UPDATE orders SET deleted_at = EXTRACT(EPOCH FROM NOW()) WHERE id = $1;`, req.Id)
 
 	if err != nil {
-		return
+		return nil, err
 	}
-	return
+	return &order_service.Empty{}, nil
 }
 
-func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderRequest) (resp *order_service.GetListOrderResponse, err error) {
-	resp = &order_service.GetListOrderResponse{}
+func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderRequest) (*order_service.GetListOrderResponse, error) {
+	resp := &order_service.GetListOrderResponse{}
 	filter := ""
 
 	if req.Search != "" {
@@ -249,8 +248,7 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 		courier_phone,
 		courier_name,
 		TO_CHAR(created_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS created_at, 
-		TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS updated_at, 
-		deleted_at
+		TO_CHAR(updated_at,'YYYY-MM-DD HH24:MI:SS TZH:TZM') AS updated_at
 	FROM
 		orders
 	WHERE TRUE `+filter+` AND deleted_at = 0
@@ -260,7 +258,7 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 		$2;`, req.Offset, req.Limit)
 
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	for rows.Next() {
@@ -290,9 +288,8 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 			&order.CourierPhone,
 			&order.CourierName,
 			&order.CreatedAt,
-			&order.UpdatedAt,
-			&order.DeletedAt); err != nil {
-			return
+			&order.UpdatedAt); err != nil {
+			return nil, err
 		}
 
 		order.PaymentType = mapPostgreSQLToPaymentType(paymentType.String)
@@ -308,7 +305,7 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 	}
 	err = o.db.QueryRow(ctx, `SELECT COUNT(*) FROM orders WHERE TRUE `+filter+` AND deleted_at = 0`).Scan(&resp.Count)
 	if err != nil {
-		return
+		return nil, err
 	}
-	return
+	return resp, nil
 }
