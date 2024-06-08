@@ -117,7 +117,7 @@ func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) 
 	orderType := mapOrderTypeToPostgreSQL(req.Type)
 	paymentStatus := mapPaymentEnumToPostgreSQL(req.Status)
 
-	row := o.db.QueryRow(ctx, `SELECT external_id FROM orders ORDER BY updated_at DESC LIMIT 1;`)
+	row := o.db.QueryRow(ctx, `SELECT external_id FROM orders ORDER BY created_at DESC LIMIT 1;`)
 
 	err := row.Scan(&externalId)
 	if err != nil {
