@@ -2,8 +2,11 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"order/genproto/order_service"
 	"order/storage"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgtype"
@@ -108,18 +111,45 @@ func NewOrderRepo(db *pgxpool.Pool) storage.OrderRepo {
 
 func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) (*order_service.Order, error) {
 	id := uuid.New()
+	var externalId string
 
 	paymentType := mapPaymentTypeToPostgreSQL(req.PaymentType)
 	orderType := mapOrderTypeToPostgreSQL(req.Type)
 	paymentStatus := mapPaymentEnumToPostgreSQL(req.Status)
 
-	_, err := o.db.Exec(ctx, `
-	INSERT INTO 
-		orders(id, external_id, type, customer_phone, customer_name, customer_id, payment_type, status, to_address, to_location, discount_amount, amount, delivery_price, paid, courier_id, courier_phone, courier_name)
-	VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_MakePoint($10, $11), 4326), $12, $13, $14, $15, $16, $17, $18);`, id, req.ExternalId, orderType, req.CourierPhone, req.CustomerName, req.CustomerId, paymentType, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.CourierId, req.CourierPhone, req.CourierName)
+	row := o.db.QueryRow(ctx, `SELECT external_id FROM orders ORDER BY updated_at DESC LIMIT 1;`)
+
+	err := row.Scan(&externalId)
 	if err != nil {
-		return nil, err
+		_, err = o.db.Exec(ctx, `
+			INSERT INTO 
+				orders(id, external_id, type, customer_phone, customer_name, customer_id, payment_type, status, to_address, to_location, discount_amount, amount, delivery_price, paid, courier_id, courier_phone, courier_name)
+			VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_MakePoint($10, $11), 4326), $12, $13, $14, $15, $16, $17, $18);`, id, "num-000001", orderType, req.CourierPhone, req.CustomerName, req.CustomerId, paymentType, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.CourierId, req.CourierPhone, req.CourierName)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		splitted := strings.Split(externalId, "-")
+		number, err := strconv.Atoi(splitted[1])
+
+		if err != nil {
+			return nil, err
+		}
+		number++
+		stringNumber := strconv.Itoa(number)
+		length := 6 - len(stringNumber)
+		zeros := strings.Repeat("0", length)
+		result := fmt.Sprintf("num-%s%d", zeros, number)
+		_, err = o.db.Exec(ctx, `
+			INSERT INTO 
+				orders(id, external_id, type, customer_phone, customer_name, customer_id, payment_type, status, to_address, to_location, discount_amount, amount, delivery_price, paid, courier_id, courier_phone, courier_name)
+			VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_MakePoint($10, $11), 4326), $12, $13, $14, $15, $16, $17, $18);`, id, result, orderType, req.CourierPhone, req.CustomerName, req.CustomerId, paymentType, paymentStatus, req.ToAddress, req.ToLocation.Longitude, req.ToLocation.Latitude, req.DiscountAmount, req.Amount, req.DeliveryPrice, req.Paid, req.CourierId, req.CourierPhone, req.CourierName)
+
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	resp, err := o.GetById(ctx, &order_service.OrderPrimaryKey{Id: id.String()})
 
 	if err != nil {
@@ -161,7 +191,7 @@ func (o *orderRepo) GetById(ctx context.Context, req *order_service.OrderPrimary
 
 	var (
 		paymentType, orderType, paymentStatus pgtype.Text
-		longitude, latitude      float64
+		longitude, latitude                   float64
 	)
 
 	err := row.Scan(
@@ -263,9 +293,9 @@ func (o *orderRepo) GetAll(ctx context.Context, req *order_service.GetListOrderR
 
 	for rows.Next() {
 		var (
-			order                    order_service.Order
+			order                                 order_service.Order
 			paymentType, orderType, paymentStatus pgtype.Text
-			longitude, latitude      float64
+			longitude, latitude                   float64
 		)
 
 		if err = rows.Scan(
