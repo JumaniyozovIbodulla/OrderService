@@ -2,7 +2,7 @@ CREATE TYPE "order_enum" AS ENUM('self_pickup','delivery');
 CREATE TYPE "payment_type" AS ENUM('uzum','cash', 'terminal');
 CREATE TYPE "payment_enum" AS ENUM('waiting_for_payment', 'collecting', 'shipping', 'waiting_on_branch', 'finished', 'cancelled');
 
-CREATE EXTENSION IF NOT EXISTS postgis;
+
 
 CREATE TABLE IF NOT EXISTS "orders" (
     "id" UUID PRIMARY KEY,

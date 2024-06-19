@@ -111,6 +111,7 @@ func NewOrderRepo(db *pgxpool.Pool) storage.OrderRepo {
 
 func (o *orderRepo) Create(ctx context.Context, req *order_service.CreateOrder) (*order_service.Order, error) {
 	id := uuid.New()
+	
 	var externalId string
 
 	paymentType := mapPaymentTypeToPostgreSQL(req.PaymentType)
